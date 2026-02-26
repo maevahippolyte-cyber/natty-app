@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Natty by Nature — Quand le Cheveu Parle</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height: 100%; }
+    body { overscroll-behavior: none; }
+    input, textarea, select, button { font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const C = {
+  deep: "#1E3D1A", mid: "#2D5A27", light: "#4A7C42",
+  pale: "#C8E6C2", ultra: "#EBF5E8", gold: "#C9A96E",
+  cream: "#FAF8F3", border: "#D5E8D0", text: "#1A1A1A", gray: "#666",
+  psycho: "#7B3F00", psychoBg: "#FDF3E7", danger: "#c0392b"
+};
+
+const PRACTITIONERS = [
+  { id: "maeva", name: "Maeva", role: "Coiffure & Diagnostic", pin: "1234", color: C.mid },
+  { id: "maman", name: "Michèle", role: "Psychopraticienne", pin: "5678", color: C.psycho },
+  { id: "admin", name: "Admin", role: "Accès complet", pin: "0000", color: C.deep },
+];
+
+const FORFAITS = [
+  {
+    id: "consultation", label: "Consultation Natty", price: 90, suivi: false,
+    sessions: [{ type: "capillaire", label: "Consultation initiale", num: 1 }]
+  },
+  {
+    id: "decouverte", label: "Forfait Découverte", duration: "1 mois", price: 230, suivi: false,
+    sessions: [
+      { type: "capillaire", label: "Séance Capillaire", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 2 },
+      { type: "psycho", label: "Séance Psycho", num: 1 },
+    ]
+  },
+  {
+    id: "immersion", label: "Forfait Immersion", duration: "3 mois", price: 590, suivi: false,
+    sessions: [
+      { type: "capillaire", label: "Séance Capillaire", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 2 },
+      { type: "psycho", label: "Séance Psycho", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 3 },
+      { type: "capillaire", label: "Séance Capillaire", num: 4 },
+      { type: "psycho", label: "Séance Psycho", num: 2 },
+      { type: "capillaire", label: "Séance Capillaire", num: 5 },
+      { type: "capillaire", label: "Séance Capillaire", num: 6 },
+      { type: "psycho", label: "Séance Psycho", num: 3 },
+    ]
+  },
+  {
+    id: "longterme", label: "Forfait Long Terme", duration: "6 mois", price: 890, suivi: false,
+    sessions: Array.from({ length: 12 }, (_, i) => ({ type: "libre", label: "Séance", num: i + 1 }))
+  },
+  {
+    id: "suivi_decouverte", label: "Forfait Suivi — Découverte", duration: "1 mois", price: 190, suivi: true,
+    sessions: [
+      { type: "capillaire", label: "Séance Capillaire", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 2 },
+      { type: "psycho", label: "Séance Psycho", num: 1 },
+    ]
+  },
+  {
+    id: "suivi_immersion", label: "Forfait Suivi — Immersion", duration: "3 mois", price: 490, suivi: true,
+    sessions: [
+      { type: "capillaire", label: "Séance Capillaire", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 2 },
+      { type: "psycho", label: "Séance Psycho", num: 1 },
+      { type: "capillaire", label: "Séance Capillaire", num: 3 },
+      { type: "capillaire", label: "Séance Capillaire", num: 4 },
+      { type: "psycho", label: "Séance Psycho", num: 2 },
+      { type: "capillaire", label: "Séance Capillaire", num: 5 },
+      { type: "capillaire", label: "Séance Capillaire", num: 6 },
+      { type: "psycho", label: "Séance Psycho", num: 3 },
+    ]
+  },
+  {
+    id: "suivi_longterme", label: "Forfait Suivi — Long Terme", duration: "6 mois", price: 750, suivi: true,
+    sessions: Array.from({ length: 12 }, (_, i) => ({ type: "libre", label: "Séance", num: i + 1 }))
+  },
+];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const today = () => new Date().toISOString().slice(0, 10);
+const fmt = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("fr-FR") : "—";
+
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://rrmxlyrqrogktkwmbolu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ILaH4dQ5IQPSfAtx-Lgaww_JvMrboPF";
+const WORKSPACE = "natty_by_nature";
+
+// ─── STORAGE — Supabase REST ──────────────────────────────────────────────────
+const store = {
+  async get() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/natty_workspace?workspace_id=eq.${WORKSPACE}&select=data`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const rows = await res.json();
+      return rows?.[0]?.data || null;
+    } catch { return null; }
+  },
+  async set(clients) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/natty_workspace`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates",
+        },
+        body: JSON.stringify({ workspace_id: WORKSPACE, data: clients, updated_at: new Date().toISOString() }),
+      });
+      return true;
+    } catch { return false; }
+  }
+};
+
+// ─── SUPABASE SETUP SCREEN ────────────────────────────────────────────────────
+// ─── GENERATE SESSIONS FROM FORFAIT ──────────────────────────────────────────
+function generateSessions(forfaitId, diagnostic) {
+  const forfait = FORFAITS.find(f => f.id === forfaitId);
+  if (!forfait) return [];
+  return forfait.sessions.map((s, i) => ({
+    id: uid(),
+    type: s.type,
+    label: s.label,
+    num: s.num,
+    date: "",
+    done: false,
+    // Pre-fill from diagnostic
+    typeCheveu: diagnostic?.typeCheveu || "",
+    axes: diagnostic?.axes ? { ...diagnostic.axes } : { hydra: 5, nutri: 5, fonda: 5 },
+    // To fill
+    objectif: "",
+    notes: "",
+    progression: 5,
+    nextSteps: "",
+    psychoNotes: "",
+    obstaclesTravailles: "",
+    evolutionObservee: "",
+    photo: null,
+  }));
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const s = {
+  app: { fontFamily: "'Segoe UI', system-ui, sans-serif", background: C.cream, minHeight: "100vh", color: C.text },
+  header: { background: C.deep, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  title: { fontFamily: "Georgia, serif", fontSize: 20, color: "white", fontWeight: 300 },
+  sub: { fontSize: 11, color: C.gold, letterSpacing: 2, textTransform: "uppercase" },
+  nav: { background: C.mid, display: "flex", overflowX: "auto", borderBottom: `2px solid ${C.light}` },
+  navBtn: (a) => ({ padding: "11px 16px", fontSize: 12, fontWeight: 500, color: a ? "white" : "rgba(255,255,255,0.5)", cursor: "pointer", whiteSpace: "nowrap", background: "none", border: "none", borderBottom: a ? `2px solid ${C.gold}` : "2px solid transparent" }),
+  card: (extra = {}) => ({ background: "white", borderRadius: 12, border: `1.5px solid ${C.border}`, padding: "18px 20px", marginBottom: 14, ...extra }),
+  label: { fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", color: C.mid, display: "block", marginBottom: 5 },
+  input: { width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "9px 13px", fontSize: 14, fontFamily: "inherit", color: C.text, background: "white", outline: "none", boxSizing: "border-box" },
+  textarea: { width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "9px 13px", fontSize: 14, fontFamily: "inherit", color: C.text, background: "white", outline: "none", resize: "vertical", minHeight: 75, boxSizing: "border-box" },
+  select: { width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "9px 13px", fontSize: 14, fontFamily: "inherit", background: "white", outline: "none", boxSizing: "border-box" },
+  btn: (v = "primary", extra = {}) => ({
+    padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer",
+    background: v === "primary" ? C.deep : v === "gold" ? C.gold : v === "danger" ? C.danger : v === "green" ? C.mid : v === "psycho" ? C.psycho : "white",
+    color: v === "outline" ? C.mid : "white",
+    border: v === "outline" ? `1.5px solid ${C.border}` : "none",
+    ...extra
+  }),
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 },
+  pill: (a, col = C.mid) => ({ padding: "6px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", border: `1.5px solid ${a ? col : C.border}`, background: a ? col : "white", color: a ? "white" : C.text, margin: "3px 3px 3px 0", display: "inline-block" }),
+  sectionHead: { fontFamily: "Georgia, serif", fontSize: 18, color: C.deep, marginBottom: 14 },
+  badge: (col) => ({ background: col, color: "white", fontSize: 11, padding: "3px 10px", borderRadius: 20 }),
+};
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function Login({ onLogin }) {
+  const [sel, setSel] = useState(null);
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const attempt = () => {
+    if (sel.pin === pin) onLogin(sel);
+    else { setErr("Code incorrect"); setPin(""); }
+  };
+  return (
+    <div style={{ ...s.app, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ fontSize: 10, letterSpacing: 4, color: C.gold, textTransform: "uppercase", marginBottom: 6 }}>Natty by Nature</div>
+        <div style={{ fontFamily: "Georgia, serif", fontSize: 28, color: C.deep, fontWeight: 300 }}>Quand le Cheveu Parle</div>
+        <div style={{ fontSize: 13, color: C.gray, marginTop: 6 }}>Espace Praticiens</div>
+      </div>
+      {!sel ? (
+        <div style={{ width: "100%", maxWidth: 360 }}>
+          <div style={{ fontSize: 12, color: C.gray, textAlign: "center", marginBottom: 16 }}>Qui êtes-vous ?</div>
+          {PRACTITIONERS.map(p => (
+            <div key={p.id} onClick={() => setSel(p)} style={{ ...s.card(), display: "flex", alignItems: "center", gap: 14, cursor: "pointer", marginBottom: 10 }}>
+              <div style={{ width: 42, height: 42, borderRadius: "50%", background: p.color, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 17 }}>{p.name[0]}</div>
+              <div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: 12, color: C.gray }}>{p.role}</div></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ width: "100%", maxWidth: 300, textAlign: "center" }}>
+          <div style={{ marginBottom: 20, fontSize: 15, color: C.deep }}>Code — <strong>{sel.name}</strong></div>
+          <input type="password" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === "Enter" && attempt()} placeholder="••••" style={{ ...s.input, textAlign: "center", fontSize: 22, letterSpacing: 8, marginBottom: 10 }} />
+          {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 10 }}>{err}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button style={s.btn("outline")} onClick={() => { setSel(null); setPin(""); setErr(""); }}>Retour</button>
+            <button style={s.btn()} onClick={attempt}>Entrer</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── GAUGE ────────────────────────────────────────────────────────────────────
+function Gauge({ label, emoji, value, onChange, readOnly }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 14, fontWeight: 500 }}>{emoji} {label}</span>
+        <span style={{ fontFamily: "Georgia, serif", fontSize: 20, color: C.mid, fontWeight: 600 }}>{value}<span style={{ fontSize: 12, color: C.gray }}>/10</span></span>
+      </div>
+      <div style={{ height: 7, background: C.ultra, borderRadius: 4, overflow: "hidden", marginBottom: readOnly ? 0 : 6 }}>
+        <div style={{ height: "100%", width: `${value * 10}%`, background: `linear-gradient(90deg, ${C.light}, ${C.deep})`, borderRadius: 4, transition: "width 0.3s" }} />
+      </div>
+      {!readOnly && <input type="range" min="1" max="10" value={value} onChange={e => onChange(parseInt(e.target.value))} style={{ width: "100%", accentColor: C.mid }} />}
+    </div>
+  );
+}
+
+// ─── FIELD HELPERS ────────────────────────────────────────────────────────────
+function Tags({ opts, val, onChange, col }) {
+  return <div style={{ marginTop: 4 }}>{opts.map(o => <span key={o} onClick={() => onChange(o)} style={s.pill(val === o, col || C.mid)}>{o}</span>)}</div>;
+}
+
+// ─── DIAGNOSTIC TAB ───────────────────────────────────────────────────────────
+function DiagnosticTab({ client, onUpdate, readOnly }) {
+  const upd = (k, v) => onUpdate({ ...client, [k]: v });
+  const updAxe = (k, v) => onUpdate({ ...client, axes: { ...client.axes, [k]: v } });
+  const toggleAno = (a) => {
+    const ano = client.anomalies || [];
+    onUpdate({ ...client, anomalies: ano.includes(a) ? ano.filter(x => x !== a) : [...ano, a] });
+  };
+
+  return (
+    <div>
+      {/* AXES */}
+      <div style={s.card()}>
+        <div style={s.sectionHead}>⚖️ Les 3 Axes</div>
+        <Gauge label="Hydratation" emoji="💧" value={client.axes?.hydra || 5} onChange={v => updAxe("hydra", v)} readOnly={readOnly} />
+        {!readOnly && <div style={{ marginBottom: 12 }}><label style={s.label}>Observations Hydratation</label><textarea style={{ ...s.textarea, minHeight: 55 }} value={client.obsHydra || ""} onChange={e => upd("obsHydra", e.target.value)} /></div>}
+        <Gauge label="Nutrition" emoji="🌿" value={client.axes?.nutri || 5} onChange={v => updAxe("nutri", v)} readOnly={readOnly} />
+        {!readOnly && <div style={{ marginBottom: 12 }}><label style={s.label}>Observations Nutrition</label><textarea style={{ ...s.textarea, minHeight: 55 }} value={client.obsNutri || ""} onChange={e => upd("obsNutri", e.target.value)} /></div>}
+        <Gauge label="Fondation" emoji="🌱" value={client.axes?.fonda || 5} onChange={v => updAxe("fonda", v)} readOnly={readOnly} />
+        {!readOnly && <div><label style={s.label}>Observations Fondation</label><textarea style={{ ...s.textarea, minHeight: 55 }} value={client.obsFonda || ""} onChange={e => upd("obsFonda", e.target.value)} /></div>}
+      </div>
+
+      {/* OBSERVATION */}
+      <div style={s.card()}>
+        <div style={s.sectionHead}>🔬 Observation du Cheveu</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={s.label}>Type de cheveu</label>
+          <div>{["1A","1B","1C","2A","2B","2C","3A","3B","3C","4A","4B","4C"].map(t => <span key={t} onClick={() => !readOnly && upd("typeCheveu", t)} style={s.pill(client.typeCheveu === t)}>{t}</span>)}</div>
+        </div>
+        <div style={s.grid2}>
+          <div><label style={s.label}>Porosité</label><Tags opts={["Faible","Normale","Élevée"]} val={client.porosite} onChange={v => !readOnly && upd("porosite", v)} /></div>
+          <div><label style={s.label}>Diamètre</label><Tags opts={["Fin","Moyen","Épais","Mixte"]} val={client.diametre} onChange={v => !readOnly && upd("diametre", v)} /></div>
+          <div><label style={s.label}>Densité</label><Tags opts={["Faible","Moyenne","Dense"]} val={client.densite} onChange={v => !readOnly && upd("densite", v)} /></div>
+          <div><label style={s.label}>Cuir chevelu</label><Tags opts={["Sain","Sec","Gras","Sensible","Pellicules","Inflammé"]} val={client.cuir} onChange={v => !readOnly && upd("cuir", v)} /></div>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <label style={s.label}>Anomalies</label>
+          <div>{["Chute diffuse","Zones dégarnies","Alopécie traction","Pelade","Cassure excessive","Aucune"].map(a => <span key={a} onClick={() => !readOnly && toggleAno(a)} style={s.pill((client.anomalies||[]).includes(a))}>{a}</span>)}</div>
+        </div>
+      </div>
+
+      {/* PLAN */}
+      <div style={s.card()}>
+        <div style={s.sectionHead}>🎯 Plan d'Action</div>
+        {[["Priorité n°1","prio1"],["Ingrédients recommandés","ingredients"],["Routine recommandée","routine"],["À éviter absolument","aEviter"]].map(([l,k]) => (
+          <div key={k} style={{ marginBottom: 12 }}>
+            <label style={s.label}>{l}</label>
+            <textarea style={{ ...s.textarea, minHeight: 55 }} value={client[k] || ""} onChange={e => !readOnly && upd(k, e.target.value)} readOnly={readOnly} />
+          </div>
+        ))}
+        <label style={s.label}>Prochain RDV</label>
+        <input style={s.input} value={client.rdv || ""} onChange={e => !readOnly && upd("rdv", e.target.value)} readOnly={readOnly} />
+      </div>
+
+      {/* PSYCHO */}
+      <div style={{ ...s.card(), borderLeft: `4px solid ${C.psycho}` }}>
+        <div style={{ ...s.sectionHead, color: C.psycho }}>🧠 Dimension Psycho-Émotionnelle</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ ...s.label, color: C.psycho }}>Obstacles identifiés</label>
+          <textarea style={s.textarea} value={client.psycho || ""} onChange={e => !readOnly && upd("psycho", e.target.value)} readOnly={readOnly} />
+        </div>
+        <label style={{ ...s.label, color: C.psycho }}>Suivi psychopraticien</label>
+        <Tags opts={["Prioritaire","En complément","À réévaluer","Non nécessaire"]} val={client.suiviPsycho} onChange={v => !readOnly && upd("suiviPsycho", v)} col={C.psycho} />
+      </div>
+    </div>
+  );
+}
+
+// ─── SESSION CARD ─────────────────────────────────────────────────────────────
+function SessionCard({ session, index, diagnostic, practitioner, onUpdate }) {
+  const [open, setOpen] = useState(false);
+  const photoRef = useRef();
+
+  const canEdit = practitioner.id === "admin" ||
+    (practitioner.id === "maeva" && session.type !== "psycho") ||
+    (practitioner.id === "maman" && session.type === "psycho");
+
+  const upd = (k, v) => onUpdate({ ...session, [k]: v });
+  const updAxe = (k, v) => onUpdate({ ...session, axes: { ...session.axes, [k]: v } });
+
+  const handlePhoto = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Photo trop lourde (max 2MB). Compresse l'image avant de l'ajouter.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => upd("photo", ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const typeColor = session.type === "psycho" ? C.psycho : session.type === "libre" ? C.light : C.mid;
+  const typeLabel = session.type === "psycho" ? "Séance Psycho" : session.type === "libre" ? "Séance Libre" : "Séance Capillaire";
+
+  return (
+    <div style={{ border: `1.5px solid ${session.done ? C.pale : C.border}`, borderRadius: 12, marginBottom: 10, background: session.done ? C.ultra : "white", overflow: "hidden" }}>
+      {/* HEADER */}
+      <div onClick={() => setOpen(!open)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: typeColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+            {session.type === "psycho" ? "🧠" : session.type === "libre" ? "★" : "✂️"}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>{session.label} {session.num && `n°${session.num}`}</div>
+            <div style={{ fontSize: 12, color: C.gray }}>{typeLabel} {session.date && `• ${fmt(session.date)}`}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {session.done && <span style={{ fontSize: 11, color: C.mid, fontWeight: 600 }}>✓ Faite</span>}
+          {session.photo && <span style={{ fontSize: 16 }}>📷</span>}
+          <span style={{ color: C.gray, fontSize: 18 }}>{open ? "↑" : "↓"}</span>
+        </div>
+      </div>
+
+      {/* BODY */}
+      {open && (
+        <div style={{ padding: "0 18px 18px", borderTop: `1px solid ${C.border}` }}>
+
+          {/* Pre-filled from diagnostic */}
+          {diagnostic && (
+            <div style={{ background: C.ultra, borderRadius: 8, padding: "10px 14px", marginTop: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: C.mid, marginBottom: 8 }}>📋 Rappel diagnostic initial</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                {[["💧", "H", diagnostic.axes?.hydra], ["🌿", "N", diagnostic.axes?.nutri], ["🌱", "F", diagnostic.axes?.fonda]].map(([e, l, v]) => (
+                  <div key={l} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 11, color: C.gray }}>{e} {l}</div>
+                    <div style={{ fontFamily: "Georgia, serif", fontSize: 18, color: C.deep, fontWeight: 600 }}>{v || "—"}</div>
+                  </div>
+                ))}
+                {diagnostic.typeCheveu && <div><div style={{ fontSize: 11, color: C.gray }}>Type</div><div style={{ fontSize: 14, fontWeight: 600 }}>{diagnostic.typeCheveu}</div></div>}
+              </div>
+            </div>
+          )}
+
+          {canEdit ? (
+            <div>
+              <div style={s.grid2}>
+                <div>
+                  <label style={s.label}>Date</label>
+                  <input type="date" style={s.input} value={session.date} onChange={e => upd("date", e.target.value)} />
+                </div>
+                <div>
+                  <label style={s.label}>Progression — {session.progression}/10</label>
+                  <input type="range" min="1" max="10" value={session.progression} onChange={e => upd("progression", parseInt(e.target.value))} style={{ width: "100%", accentColor: typeColor, marginTop: 8 }} />
+                </div>
+              </div>
+
+              {session.type !== "psycho" && (
+                <div>
+                  <div style={{ marginTop: 12, marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.mid, marginBottom: 8 }}>Évolution des 3 axes</div>
+                    <Gauge label="Hydratation" emoji="💧" value={session.axes?.hydra || 5} onChange={v => updAxe("hydra", v)} />
+                    <Gauge label="Nutrition" emoji="🌿" value={session.axes?.nutri || 5} onChange={v => updAxe("nutri", v)} />
+                    <Gauge label="Fondation" emoji="🌱" value={session.axes?.fonda || 5} onChange={v => updAxe("fonda", v)} />
+                  </div>
+                </div>
+              )}
+
+              {session.type === "psycho" ? (
+                <div>
+                  <div style={{ marginBottom: 10 }}><label style={{ ...s.label, color: C.psycho }}>Obstacles travaillés</label><textarea style={s.textarea} value={session.obstaclesTravailles || ""} onChange={e => upd("obstaclesTravailles", e.target.value)} /></div>
+                  <div style={{ marginBottom: 10 }}><label style={{ ...s.label, color: C.psycho }}>Évolution observée</label><textarea style={s.textarea} value={session.evolutionObservee || ""} onChange={e => upd("evolutionObservee", e.target.value)} /></div>
+                  <div style={{ marginBottom: 10 }}><label style={{ ...s.label, color: C.psycho }}>Notes de séance</label><textarea style={s.textarea} value={session.psychoNotes || ""} onChange={e => upd("psychoNotes", e.target.value)} /></div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: 10 }}><label style={s.label}>Objectif de la séance</label><input style={s.input} value={session.objectif || ""} onChange={e => upd("objectif", e.target.value)} /></div>
+                  <div style={{ marginBottom: 10 }}><label style={s.label}>Notes & observations</label><textarea style={s.textarea} value={session.notes || ""} onChange={e => upd("notes", e.target.value)} /></div>
+                  <div style={{ marginBottom: 10 }}><label style={s.label}>Prochaines étapes</label><textarea style={{ ...s.textarea, minHeight: 55 }} value={session.nextSteps || ""} onChange={e => upd("nextSteps", e.target.value)} /></div>
+                </div>
+              )}
+
+              {/* Photo intervalle — capillaire et libre uniquement */}
+              {session.type !== "psycho" && (
+                <div style={{ marginBottom: 10 }}>
+                  <label style={s.label}>📷 Photo de suivi</label>
+                  <div onClick={() => photoRef.current.click()} style={{ height: 120, border: `2px dashed ${C.border}`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", background: C.ultra }}>
+                    {session.photo ? <img src={session.photo} alt="suivi" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ textAlign: "center", color: C.gray, fontSize: 13 }}>📷<br />Photo de séance</div>}
+                  </div>
+                  <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhoto} />
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                <button style={s.btn(session.done ? "outline" : "green")} onClick={() => upd("done", !session.done)}>
+                  {session.done ? "✓ Faite — Rouvrir" : "✓ Marquer comme faite"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: "10px 0", color: C.gray, fontSize: 13, fontStyle: "italic" }}>
+              Cette séance est gérée par {session.type === "psycho" ? "Michèle" : "Maeva"}.
+              {session.done && <div style={{ marginTop: 8, color: C.mid, fontWeight: 500 }}>✓ Séance effectuée le {fmt(session.date)}</div>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PHOTOS TAB ───────────────────────────────────────────────────────────────
+function PhotosTab({ client, onUpdate }) {
+  const beforeRef = useRef();
+  const afterRef = useRef();
+  const refsMap = { before: beforeRef, after: afterRef };
+
+  const handlePhoto = (type, e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Photo trop lourde (max 2MB). Compresse l'image avant de l'ajouter.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => onUpdate({ ...client, photos: { ...(client.photos || {}), [type]: ev.target.result } });
+    reader.readAsDataURL(file);
+  };
+
+  // Interval photos from sessions
+  const intervalPhotos = (client.sessions || []).filter(s => s.photo && s.date).sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div>
+      <div style={s.card()}>
+        <div style={s.sectionHead}>📸 Photos Clés</div>
+        <div style={s.grid2}>
+          {["before", "after"].map(type => (
+            <div key={type}>
+              <label style={s.label}>{type === "before" ? "📷 Avant" : "✨ Après"}</label>
+              <div onClick={() => refsMap[type].current.click()} style={{ height: 180, borderRadius: 10, overflow: "hidden", background: C.ultra, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: `1.5px dashed ${C.border}` }}>
+                {client.photos?.[type]
+                  ? <img src={client.photos[type]} alt={type} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <div style={{ textAlign: "center", color: C.gray, fontSize: 13 }}>Appuyer pour ajouter</div>}
+              </div>
+              <input ref={refsMap[type]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handlePhoto(type, e)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {intervalPhotos.length > 0 && (
+        <div style={s.card()}>
+          <div style={s.sectionHead}>📅 Photos d'évolution</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12 }}>
+            {intervalPhotos.map((sess, i) => (
+              <div key={sess.id}>
+                <div style={{ height: 130, borderRadius: 10, overflow: "hidden", background: C.ultra }}>
+                  <img src={sess.photo} alt={`séance ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div style={{ fontSize: 11, color: C.gray, textAlign: "center", marginTop: 4 }}>{sess.label} {sess.num} • {fmt(sess.date)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {intervalPhotos.length === 0 && (
+        <div style={{ textAlign: "center", color: C.gray, padding: 30, fontStyle: "italic", fontSize: 13 }}>Les photos prises lors des séances apparaîtront ici automatiquement</div>
+      )}
+    </div>
+  );
+}
+
+// ─── PDF GENERATOR ────────────────────────────────────────────────────────────
+function generatePdfHtml(client, type) {
+  const forfait = FORFAITS.find(f => f.id === client.forfait);
+  const doneSessions = (client.sessions || []).filter(s => s.done);
+  const axes = client.axes || { hydra: 5, nutri: 5, fonda: 5 };
+
+  const axeBar = (val) => `
+    <div style="height:8px;background:#EBF5E8;border-radius:4px;overflow:hidden;margin-top:6px">
+      <div style="height:100%;width:${val*10}%;background:linear-gradient(90deg,#4A7C42,#1E3D1A);border-radius:4px"></div>
+    </div>`;
+
+  const sessionRows = doneSessions.map(s => `
+    <div style="background:#EBF5E8;border-radius:8px;padding:12px 16px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-weight:600;font-size:14px">${s.label} ${s.num || ""}</span>
+        <span style="font-size:13px;color:#2D5A27">${s.progression}/10 ${s.date ? "• " + fmt(s.date) : ""}</span>
+      </div>
+      ${s.notes ? `<div style="font-size:13px;color:#666;margin-top:4px">${s.notes}</div>` : ""}
+      ${s.evolutionObservee ? `<div style="font-size:13px;color:#7B3F00;margin-top:4px">${s.evolutionObservee}</div>` : ""}
+      ${s.nextSteps ? `<div style="font-size:13px;color:#2D5A27;margin-top:4px">→ ${s.nextSteps}</div>` : ""}
+    </div>`).join("");
+
+  const planItems = [
+    ["Priorité n°1", client.prio1],
+    ["Ingrédients recommandés", client.ingredients],
+    ["Routine recommandée", client.routine],
+    ["À éviter absolument", client.aEviter],
+    ["Prochain RDV", client.rdv],
+  ].filter(([, v]) => v).map(([l, v]) => `
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#2D5A27;margin-bottom:3px">${l}</div>
+      <div style="font-size:14px;color:#1A1A1A">${v}</div>
+    </div>`).join("");
+
+  const photoBefore = client.photos?.before
+    ? `<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:10px">📷 Photo Avant</div><img src="${client.photos.before}" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px"/></div>`
+    : "";
+
+  const photoAfter = client.photos?.after
+    ? `<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:10px">✨ Photo Après</div><img src="${client.photos.after}" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px"/></div>`
+    : "";
+
+  const intervalPhotos = (client.sessions || []).filter(s => s.photo && s.date).sort((a, b) => a.date.localeCompare(b.date));
+  const photoGrid = intervalPhotos.length > 0 ? `
+    <div style="margin-bottom:24px">
+      <div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:12px">📅 Évolution photographique</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        ${intervalPhotos.map(s => `
+          <div>
+            <img src="${s.photo}" style="width:100%;height:120px;object-fit:cover;border-radius:8px"/>
+            <div style="font-size:11px;color:#666;text-align:center;margin-top:4px">${s.label} ${s.num || ""} • ${fmt(s.date)}</div>
+          </div>`).join("")}
+      </div>
+    </div>` : "";
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>${type === "diagnostic" ? "Diagnostic" : "Bilan"} — ${client.prenom} ${client.nom}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Georgia, serif; background: white; color: #1A1A1A; padding: 32px; max-width: 720px; margin: 0 auto; }
+    @media print {
+      body { padding: 16px; }
+      .no-print { display: none !important; }
+      @page { margin: 1.5cm; }
+    }
+  </style>
+</head>
+<body>
+  <!-- PRINT BUTTON -->
+  <div class="no-print" style="text-align:center;margin-bottom:24px">
+    <button onclick="window.print()" style="background:#C9A96E;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:15px;cursor:pointer;font-family:Georgia,serif">
+      🖨️ Imprimer / Sauvegarder PDF
+    </button>
+    <div style="font-size:12px;color:#666;margin-top:8px">Sur téléphone : appuyer sur Imprimer puis "Enregistrer en PDF"</div>
+  </div>
+
+  <!-- HEADER -->
+  <div style="background:#1E3D1A;padding:24px 28px;border-radius:12px;margin-bottom:24px;color:white">
+    <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#C9A96E;margin-bottom:6px">Natty by Nature — Quand le Cheveu Parle</div>
+    <div style="font-size:24px;font-weight:300;margin-bottom:4px">${type === "diagnostic" ? "Récapitulatif Diagnostic" : "Bilan Final de Suivi"}</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.7)">${client.prenom || ""} ${client.nom || ""} ${client.dateDebut ? "• " + fmt(client.dateDebut) : ""} ${forfait ? "• " + forfait.label : ""}</div>
+  </div>
+
+  <!-- 3 AXES -->
+  <div style="margin-bottom:24px">
+    <div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:14px">Les 3 Axes — Diagnostic Initial</div>
+    <div style="display:flex;gap:14px">
+      ${[["💧","Hydratation",axes.hydra],["🌿","Nutrition",axes.nutri],["🌱","Fondation",axes.fonda]].map(([e,l,v]) => `
+        <div style="flex:1;background:#EBF5E8;border-radius:10px;padding:16px;text-align:center">
+          <div style="font-size:12px;color:#2D5A27;margin-bottom:4px">${e} ${l}</div>
+          <div style="font-size:36px;color:#1E3D1A;font-weight:700">${v}</div>
+          <div style="font-size:11px;color:#666">/10</div>
+          ${axeBar(v)}
+        </div>`).join("")}
+    </div>
+  </div>
+
+  <!-- TYPE DE CHEVEU & PROFIL -->
+  ${client.typeCheveu || client.porosite || client.densite ? `
+  <div style="margin-bottom:24px;background:#EBF5E8;border-radius:10px;padding:16px">
+    <div style="font-size:14px;font-weight:600;color:#1E3D1A;margin-bottom:8px">Profil Capillaire</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      ${client.typeCheveu ? `<div><div style="font-size:11px;color:#666">Type</div><div style="font-size:15px;font-weight:600">${client.typeCheveu}</div></div>` : ""}
+      ${client.porosite ? `<div><div style="font-size:11px;color:#666">Porosité</div><div style="font-size:15px;font-weight:600">${client.porosite}</div></div>` : ""}
+      ${client.diametre ? `<div><div style="font-size:11px;color:#666">Diamètre</div><div style="font-size:15px;font-weight:600">${client.diametre}</div></div>` : ""}
+      ${client.densite ? `<div><div style="font-size:11px;color:#666">Densité</div><div style="font-size:15px;font-weight:600">${client.densite}</div></div>` : ""}
+      ${client.cuir ? `<div><div style="font-size:11px;color:#666">Cuir chevelu</div><div style="font-size:15px;font-weight:600">${client.cuir}</div></div>` : ""}
+    </div>
+  </div>` : ""}
+
+  <!-- PHOTO AVANT -->
+  ${photoBefore}
+
+  ${type === "bilan" ? `
+  <!-- SÉANCES -->
+  ${doneSessions.length > 0 ? `
+  <div style="margin-bottom:24px">
+    <div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:10px">Progression du Suivi — ${doneSessions.length} séance(s) effectuée(s)</div>
+    ${sessionRows}
+  </div>` : ""}
+
+  <!-- PHOTO APRÈS -->
+  ${photoAfter}
+
+  <!-- PHOTOS ÉVOLUTION -->
+  ${photoGrid}
+  ` : ""}
+
+  <!-- PLAN D'ACTION -->
+  ${planItems ? `
+  <div style="margin-bottom:24px">
+    <div style="font-size:16px;font-weight:600;color:#1E3D1A;margin-bottom:12px">Plan d'Action</div>
+    ${planItems}
+  </div>` : ""}
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid #D5E8D0;padding-top:14px;font-size:11px;color:#666;text-align:center">
+    Natty by Nature — Quand le Cheveu Parle 🌿 • Document confidentiel et personnel
+  </div>
+</body>
+</html>`;
+}
+
+function openPdf(client, type) {
+  const html = generatePdfHtml(client, type);
+  const filename = `${type === "diagnostic" ? "diagnostic" : "bilan"}_${(client.prenom || "cliente").toLowerCase()}_${(client.nom || "").toLowerCase()}.html`;
+  const a = document.createElement("a");
+  a.href = "data:text/html;charset=utf-8," + encodeURIComponent(html);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ─── CLIENT DETAIL ────────────────────────────────────────────────────────────
+function ClientDetail({ client, practitioner, onUpdate, onBack }) {
+  const [tab, setTab] = useState("info");
+  const [editDiag, setEditDiag] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmForfait, setConfirmForfait] = useState(null); // stores new forfait id pending confirmation
+
+  const forfait = FORFAITS.find(f => f.id === client.forfait);
+  const sessions = client.sessions || [];
+  const done = sessions.filter(s => s.done).length;
+  const progress = forfait ? Math.round((done / sessions.length) * 100) : 0;
+
+  const updateSession = async (idx, updated) => {
+    const newSessions = sessions.map((s, i) => i === idx ? updated : s);
+    const updatedClient = { ...client, sessions: newSessions };
+    onUpdate(updatedClient);
+  };
+
+  const tabs = [
+    { id: "info", label: "👤 Profil" },
+    { id: "anamn", label: "🕰️ Anamnèse" },
+    { id: "diag", label: "⚖️ Diagnostic" },
+    { id: "seances", label: `📅 Séances (${done}/${sessions.length})` },
+    { id: "photos", label: "📸 Photos" },
+  ];
+
+  const upd = (k, v) => onUpdate({ ...client, [k]: v });
+  const tags = (opts, field, col) => <div style={{ marginTop: 4 }}>{opts.map(o => <span key={o} onClick={() => upd(field, o)} style={s.pill(client[field] === o, col || C.mid)}>{o}</span>)}</div>;
+
+  return (
+    <div>
+      {/* CLIENT HEADER */}
+      <div style={{ background: C.deep, padding: "14px 16px" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: C.gold, cursor: "pointer", fontSize: 13, marginBottom: 8 }}>← Clientes</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: forfait ? 12 : 0 }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: C.mid, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 20, fontWeight: 700 }}>{(client.prenom || "?")[0]}</div>
+          <div>
+            <div style={{ color: "white", fontFamily: "Georgia, serif", fontSize: 20 }}>{client.prenom} {client.nom}</div>
+            <div style={{ color: C.gold, fontSize: 12 }}>{forfait?.label || "Aucun forfait"} {client.localisation && `• ${client.localisation}`}</div>
+          </div>
+        </div>
+        {forfait && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+              <span>{done}/{sessions.length} séances</span><span>{progress}%</span>
+            </div>
+            <div style={{ height: 5, background: "rgba(255,255,255,0.15)", borderRadius: 3, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progress}%`, background: C.gold, transition: "width 0.3s" }} />
+            </div>
+          </div>
+        )}
+        {/* PDF BUTTONS */}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button style={s.btn("outline", { color: C.gold, borderColor: "rgba(255,255,255,0.2)", fontSize: 12, padding: "6px 12px" })} onClick={() => openPdf(client, "diagnostic")}>⬇️ Télécharger Diagnostic</button>
+          {sessions.length > 0 && <button style={s.btn("outline", { color: C.gold, borderColor: "rgba(255,255,255,0.2)", fontSize: 12, padding: "6px 12px" })} onClick={() => openPdf(client, "bilan")}>⬇️ Télécharger Bilan</button>}
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div style={s.nav}>{tabs.map(t => <button key={t.id} style={s.navBtn(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
+
+      <div style={{ padding: "16px 16px 80px" }}>
+
+        {/* PROFIL TAB */}
+        {tab === "info" && (
+          <div>
+            <div style={s.card()}>
+              <div style={s.sectionHead}>👤 Informations Générales</div>
+              <div style={s.grid2}>
+                {[["Prénom","prenom"],["Nom","nom"],["Âge","age"],["Email","email"],["WhatsApp","tel"],["Origine","origine"],["Localisation","localisation"]].map(([l,k]) => (
+                  <div key={k}><label style={s.label}>{l}</label><input style={s.input} value={client[k] || ""} onChange={e => upd(k, e.target.value)} /></div>
+                ))}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={s.label}>Forfait</label>
+                {confirmForfait && (
+                  <div style={{ background: "#fff3cd", border: "1.5px solid #ffc107", borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, marginBottom: 8 }}>⚠️ Changer de forfait va effacer les séances existantes. Confirmer ?</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={s.btn("outline")} onClick={() => setConfirmForfait(null)}>Annuler</button>
+                      <button style={s.btn("danger")} onClick={() => {
+                        onUpdate({ ...client, forfait: confirmForfait, sessions: generateSessions(confirmForfait, client) });
+                        setConfirmForfait(null);
+                      }}>Confirmer</button>
+                    </div>
+                  </div>
+                )}
+                <select style={s.select} value={client.forfait || ""} onChange={e => {
+                  const newF = e.target.value;
+                  if (!newF) return;
+                  const hasSessions = (client.sessions || []).some(s => s.done || s.notes || s.date);
+                  if (hasSessions && newF !== client.forfait) {
+                    setConfirmForfait(newF);
+                  } else {
+                    onUpdate({ ...client, forfait: newF, sessions: generateSessions(newF, client) });
+                  }
+                }}>
+                  <option value="">Sélectionner...</option>
+                  <optgroup label="Forfaits standards">
+                    {FORFAITS.filter(f => !f.suivi).map(f => <option key={f.id} value={f.id}>{f.label} — {f.price}€</option>)}
+                  </optgroup>
+                  <optgroup label="Forfaits suivi">
+                    {FORFAITS.filter(f => f.suivi).map(f => <option key={f.id} value={f.id}>{f.label} — {f.price}€</option>)}
+                  </optgroup>
+                </select>
+                {forfait && <div style={{ marginTop: 8, fontSize: 12, color: C.mid, fontStyle: "italic" }}>→ {sessions.length} séances générées automatiquement</div>}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={s.label}>Date de début</label>
+                <input type="date" style={s.input} value={client.dateDebut || today()} onChange={e => upd("dateDebut", e.target.value)} />
+              </div>
+            </div>
+            <div style={s.card()}>
+              <div style={s.sectionHead}>💬 Demande & Vision</div>
+              {[["Pourquoi elle vient","demande"],["Sa vision de sa chevelure","vision"],["Ce qu'elle veut garder","garder"]].map(([l,k]) => (
+                <div key={k} style={{ marginBottom: 12 }}><label style={s.label}>{l}</label><textarea style={{ ...s.textarea, minHeight: 60 }} value={client[k] || ""} onChange={e => upd(k, e.target.value)} /></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ANAMNESE TAB */}
+        {tab === "anamn" && (
+          <div>
+            <div style={s.card()}>
+              <div style={s.sectionHead}>🕰️ Parcours & Antécédents</div>
+              {[["Parcours capillaire","parcours"],["Colorations / Éclaircissements (5 ans)","colorations"],["Poudres & traitements naturels","poudres"],["Quand elle dit 'j'ai tout essayé'","toutEssaye"]].map(([l,k]) => (
+                <div key={k} style={{ marginBottom: 12 }}><label style={s.label}>{l}</label><textarea style={{ ...s.textarea, minHeight: 60 }} value={client[k] || ""} onChange={e => upd(k, e.target.value)} /></div>
+              ))}
+            </div>
+            <div style={s.card()}>
+              <div style={s.sectionHead}>⚕️ Santé & Mode de Vie</div>
+              <div style={{ marginBottom: 12 }}><label style={s.label}>Problèmes de santé</label><textarea style={{ ...s.textarea, minHeight: 60 }} value={client.sante || ""} onChange={e => upd("sante", e.target.value)} /></div>
+              <div style={s.grid2}>
+                <div><label style={s.label}>Stress</label>{tags(["Faible","Modéré","Élevé","Très élevé"],"stress")}</div>
+                <div><label style={s.label}>Eau utilisée</label>{tags(["Robinet","Filtrée","Calcaire","Source"],"eau")}</div>
+              </div>
+              <div style={{ marginTop: 12 }}><label style={s.label}>Environnement géographique</label><input style={s.input} value={client.environnement || ""} onChange={e => upd("environnement", e.target.value)} /></div>
+            </div>
+          </div>
+        )}
+
+        {/* DIAGNOSTIC TAB */}
+        {tab === "diag" && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <button style={s.btn(editDiag ? "outline" : "primary")} onClick={() => setEditDiag(!editDiag)}>
+                {editDiag ? "✓ Terminer" : "✏️ Modifier"}
+              </button>
+            </div>
+            <DiagnosticTab client={client} onUpdate={onUpdate} readOnly={!editDiag} />
+          </div>
+        )}
+
+        {/* SÉANCES TAB */}
+        {tab === "seances" && (
+          <div>
+            {sessions.length === 0
+              ? <div style={{ textAlign: "center", color: C.gray, padding: 40, fontStyle: "italic" }}>Sélectionne un forfait pour générer les séances automatiquement</div>
+              : sessions.map((sess, idx) => (
+                <SessionCard
+                  key={sess.id}
+                  session={sess}
+                  index={idx}
+                  diagnostic={client}
+                  practitioner={practitioner}
+                  onUpdate={(updated) => updateSession(idx, updated)}
+                />
+              ))
+            }
+          </div>
+        )}
+
+        {/* PHOTOS TAB */}
+        {tab === "photos" && <PhotosTab client={client} onUpdate={onUpdate} />}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
+function App() {
+  const [practitioner, setPractitioner] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [view, setView] = useState("list");
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!practitioner) return;
+    store.get().then(data => { if (data) setClients(data); });
+  }, [practitioner]);
+
+  const persist = async (updated) => {
+    setSaving(true);
+    await store.set(updated);
+    setClients(updated);
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const saveClient = async (client) => {
+    const idx = clients.findIndex(c => c.id === client.id);
+    const updated = idx >= 0 ? clients.map((c, i) => i === idx ? client : c) : [...clients, client];
+    await persist(updated);
+    setSelected(client); setView("detail");
+  };
+
+  const updateClient = async (client) => {
+    const updated = clients.map(c => c.id === client.id ? client : c);
+    await persist(updated);
+    setSelected(client);
+  };
+
+  const deleteClient = async (id) => {
+    await persist(clients.filter(c => c.id !== id));
+    setView("list");
+  };
+
+  const newClient = () => {
+    const blank = { id: uid(), prenom: "", nom: "", age: "", email: "", tel: "", origine: "", localisation: "", forfait: "", dateDebut: today(), sessions: [], photos: {}, axes: { hydra: 5, nutri: 5, fonda: 5 }, anomalies: [] };
+    setSelected(blank);
+    setView("detail");
+  };
+
+  const visible = clients.filter(c => {
+    if (search && !`${c.prenom} ${c.nom}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (practitioner?.id === "maman") return (c.sessions || []).some(s => s.type === "psycho") || ["Prioritaire","En complément"].includes(c.suiviPsycho);
+    return true;
+  });
+
+  if (!practitioner) return <Login onLogin={setPractitioner} />;
+
+  if (view === "detail" && selected) {
+    return (
+      <div style={s.app}>
+        <div style={s.header}>
+          <div><div style={s.title}>Natty by Nature 🌿</div></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {saved && <span style={{ fontSize: 11, color: C.gold }}>✓ Sauvegardé</span>}
+            {saving && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>⟳</span>}
+            <button onClick={() => setView("list")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 12 }}>← Liste</button>
+          </div>
+        </div>
+        <ClientDetail
+          client={selected}
+          practitioner={practitioner}
+          onUpdate={(client) => {
+            setSelected(client);
+            saveClient(client);
+          }}
+          onBack={() => setView("list")}
+        />
+        {(practitioner.id === "maeva" || practitioner.id === "admin") && selected.id && clients.find(c => c.id === selected.id) && (
+          <div style={{ padding: "0 16px 20px", textAlign: "right" }}>
+            {confirmDelete ? (
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: C.danger }}>Supprimer définitivement ?</span>
+                <button style={s.btn("outline")} onClick={() => setConfirmDelete(false)}>Annuler</button>
+                <button style={s.btn("danger")} onClick={() => deleteClient(selected.id)}>Confirmer</button>
+              </div>
+            ) : (
+              <button style={s.btn("danger")} onClick={() => setConfirmDelete(true)}>🗑 Supprimer</button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // LIST VIEW
+  const totalSessions = clients.reduce((a, c) => a + (c.sessions?.filter(s => s.done)?.length || 0), 0);
+  const totalCA = clients.reduce((a, c) => { const f = FORFAITS.find(fo => fo.id === c.forfait); return a + (f?.price || 0); }, 0);
+
+  return (
+    <div style={s.app}>
+      <div style={s.header}>
+        <div>
+          <div style={s.title}>Natty by Nature 🌿</div>
+          <div style={s.sub}>Quand le Cheveu Parle</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {saved && <span style={{ fontSize: 11, color: C.gold }}>✓</span>}
+          <span style={s.badge(PRACTITIONERS.find(p => p.id === practitioner.id)?.color || C.mid)}>{practitioner.name}</span>
+          <button onClick={() => setPractitioner(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 12 }}>Quitter</button>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 16px 0" }}>
+        {/* STATS */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          {[["👥", visible.length, "Clientes"], ["📅", totalSessions, "Séances"], ["💶", `${totalCA}€`, "CA total"]].map(([e, v, l]) => (
+            <div key={l} style={{ flex: 1, ...s.card({ marginBottom: 0, textAlign: "center", padding: "12px 8px" }) }}>
+              <div style={{ fontFamily: "Georgia, serif", fontSize: 20, color: C.deep }}>{e} {v}</div>
+              <div style={{ fontSize: 11, color: C.gray }}>{l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SEARCH + ADD */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          <input style={{ ...s.input, flex: 1 }} placeholder="🔍 Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
+          {practitioner.id !== "maman" && <button style={s.btn()} onClick={newClient}>+ Nouvelle</button>}
+        </div>
+      </div>
+
+      {/* LIST */}
+      <div style={{ padding: "0 16px 80px" }}>
+        {visible.length === 0 && (
+          <div style={{ textAlign: "center", padding: 50, color: C.gray, fontStyle: "italic" }}>
+            {search ? "Aucun résultat" : "Aucune cliente — appuyez sur + Nouvelle"}
+          </div>
+        )}
+        {visible.map(c => {
+          const forfait = FORFAITS.find(f => f.id === c.forfait);
+          const done = (c.sessions || []).filter(s => s.done).length;
+          const total = (c.sessions || []).length;
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+          return (
+            <div key={c.id} onClick={() => { setSelected(c); setView("detail"); }} style={{ ...s.card({ cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }) }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.mid, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 19, fontWeight: 700, flexShrink: 0 }}>{(c.prenom || "?")[0]}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>{c.prenom} {c.nom}</div>
+                <div style={{ fontSize: 12, color: C.gray }}>{forfait?.label || "Pas de forfait"}{c.localisation ? ` • ${c.localisation}` : ""}</div>
+                {total > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.gray, marginBottom: 3 }}>
+                      <span>{done}/{total} séances</span><span>{pct}%</span>
+                    </div>
+                    <div style={{ height: 4, background: C.ultra, borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: C.light }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <span style={{ color: C.border, fontSize: 20 }}>›</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
